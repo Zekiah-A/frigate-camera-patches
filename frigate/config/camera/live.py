@@ -6,6 +6,11 @@ __all__ = ["CameraLiveConfig"]
 
 
 class CameraLiveConfig(FrigateBaseModel):
+    push_to_talk: bool = Field(
+        default=False,
+        title="Hold to talk",
+        description="Transmit microphone audio only while the live talk button is held.",
+    )
     streams: dict[str, str] = Field(
         default_factory=list,
         title="Live stream names",

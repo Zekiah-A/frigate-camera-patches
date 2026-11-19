@@ -6,7 +6,9 @@
   "lowBandwidthMode": "Low-bandwidth Mode",
   "twoWayTalk": {
     "enable": "Enable Two Way Talk",
-    "disable": "Disable Two Way Talk"
+    "disable": "Disable Two Way Talk",
+    "hold": "Hold to talk",
+    "captureError": "Could not open the microphone. Check the browser permission and try again."
   },
   "cameraAudio": {
     "enable": "Enable Camera Audio",

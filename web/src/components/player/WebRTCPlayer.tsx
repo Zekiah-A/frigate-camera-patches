@@ -1,3 +1,7 @@
+import { FrigateConfig } from "@/types/frigateConfig";
+import useSWR from "swr";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { baseUrl } from "@/api/baseUrl";
 import { LivePlayerError, PlayerStatsType } from "@/types/live";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -31,6 +35,11 @@ export default function WebRtcPlayer({
   onPlaying,
   onError,
 }: WebRtcPlayerProps) {
+  const { t } = useTranslation("views/live");
+
+  const { data: config } = useSWR<FrigateConfig>("config");
+  const iceServers = config?.go2rtc?.webrtc?.ice_servers;
+
   // metadata
 
   const wsURL = useMemo(() => {
@@ -58,14 +67,14 @@ export default function WebRtcPlayer({
   const videoLoadTimeoutRef = useRef<NodeJS.Timeout>(undefined);
 
   const PeerConnection = useCallback(
-    async (media: string) => {
+    async (media: string, signal: AbortSignal) => {
       if (!videoRef.current) {
         return;
       }
 
       const pc = new RTCPeerConnection({
         bundlePolicy: "max-bundle",
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        iceServers: iceServers ?? [{ urls: "stun:stun.l.google.com:19302" }],
       });
 
       const localTracks = [];
@@ -75,6 +84,12 @@ export default function WebRtcPlayer({
           video: media.indexOf("camera") >= 0,
           audio: media.indexOf("microphone") >= 0,
         });
+        if (signal.aborted || !tracks.length) {
+          tracks.forEach((track) => track.stop());
+          pc.close();
+          if (!signal.aborted) toast.error(t("twoWayTalk.captureError"));
+          return;
+        }
         tracks.forEach((track) => {
           pc.addTransceiver(track, { direction: "sendonly" });
           if (track.kind === "video") localTracks.push(track);
@@ -105,7 +120,7 @@ export default function WebRtcPlayer({
       videoRef.current.srcObject = new MediaStream(localTracks);
       return pc;
     },
-    [videoRef],
+    [videoRef, t, iceServers],
   );
 
   async function getMediaTracks(
@@ -124,17 +139,13 @@ export default function WebRtcPlayer({
   }
 
   const connect = useCallback(
-    async (aPc: Promise<RTCPeerConnection | undefined>) => {
-      if (!aPc) {
-        return;
-      }
-
-      pcRef.current = await aPc;
+    (pc: RTCPeerConnection) => {
+      pcRef.current = pc;
       wsRef.current = new WebSocket(wsURL);
       const ws = wsRef.current;
 
       ws.addEventListener("open", () => {
-        pcRef.current?.addEventListener("icecandidate", (ev) => {
+        pc?.addEventListener("icecandidate", (ev) => {
           if (!ev.candidate) return;
           const msg = {
             type: "webrtc/candidate",
@@ -145,11 +156,11 @@ export default function WebRtcPlayer({
 
         pcRef.current
           ?.createOffer()
-          .then((offer) => pcRef.current?.setLocalDescription(offer))
+          .then((offer) => pc?.setLocalDescription(offer))
           .then(() => {
             const msg = {
               type: "webrtc/offer",
-              value: pcRef.current?.localDescription?.sdp,
+              value: pc?.localDescription?.sdp,
             };
             ws.send(JSON.stringify(msg));
           });
@@ -158,9 +169,9 @@ export default function WebRtcPlayer({
       ws.addEventListener("message", (ev) => {
         const msg = JSON.parse(ev.data);
         if (msg.type === "webrtc/candidate") {
-          pcRef.current?.addIceCandidate({ candidate: msg.value, sdpMid: "0" });
+          pc?.addIceCandidate({ candidate: msg.value, sdpMid: "0" });
         } else if (msg.type === "webrtc/answer") {
-          pcRef.current?.setRemoteDescription({
+          pc?.setRemoteDescription({
             type: "answer",
             sdp: msg.value,
           });
@@ -179,17 +190,28 @@ export default function WebRtcPlayer({
       return;
     }
 
-    const aPc = PeerConnection(
+    const abort = new AbortController();
+    void PeerConnection(
       microphoneEnabled ? "video+audio+microphone" : "video+audio",
-    );
-    connect(aPc);
+      abort.signal,
+    ).then((pc) => {
+      if (!pc) return;
+      if (abort.signal.aborted) {
+        pc.getSenders().forEach((sender) => sender.track?.stop());
+        pc.close();
+      } else {
+        connect(pc);
+      }
+    });
 
     return () => {
+      abort.abort();
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
       if (pcRef.current) {
+        pcRef.current.getSenders().forEach((sender) => sender.track?.stop());
         pcRef.current.close();
         pcRef.current = undefined;
       }

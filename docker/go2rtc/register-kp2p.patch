@@ -1,0 +1,8 @@
+diff --git a/main.go b/main.go
+index ca70e84..cfcddeb 100644
+--- a/main.go
++++ b/main.go
+@@ -26,0 +27 @@ import (
++	"github.com/AlexxIT/go2rtc/internal/kp2p"
+@@ -103,0 +105 @@ func main() {
++		{"kp2p", kp2p.Init},

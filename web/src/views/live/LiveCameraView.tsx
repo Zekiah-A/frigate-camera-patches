@@ -1,3 +1,4 @@
+import HoldToTalk from "@/components/player/HoldToTalk";
 import {
   useAudioLiveTranscription,
   useAudioState,
@@ -402,7 +403,7 @@ export default function LiveCameraView({
         }
         break;
       case "t":
-        if (supports2WayTalk) {
+        if (supports2WayTalk && !camera.live.push_to_talk) {
           setMic(!mic);
           return true;
         }
@@ -637,7 +638,15 @@ export default function LiveCameraView({
                 disabled={!cameraEnabled || debug}
               />
             )}
-            {supports2WayTalk && (
+            {supports2WayTalk && camera.live.push_to_talk && (
+              <HoldToTalk
+                key={camera.name + streamName}
+                active={mic}
+                disabled={!cameraEnabled || debug}
+                setActive={setMic}
+              />
+            )}
+            {supports2WayTalk && !camera.live.push_to_talk && (
               <CameraFeatureToggle
                 className="p-2 md:p-0"
                 variant={fullscreen ? "overlay" : "primary"}

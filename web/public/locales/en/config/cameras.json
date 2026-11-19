@@ -222,6 +222,10 @@
   "live": {
     "label": "Live playback",
     "description": "Settings used by the Web UI to control live stream selection, resolution and quality.",
+    "push_to_talk": {
+      "label": "Hold to talk",
+      "description": "Transmit microphone audio only while the live talk button is held."
+    },
     "streams": {
       "label": "Live stream names",
       "description": "Mapping of configured stream names to restream/go2rtc names used for live playback."
