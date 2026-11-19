@@ -317,6 +317,10 @@ def config(request: Request):
     for camera_name, camera in request.app.frigate_config.cameras.items():
         camera_dict = config["cameras"][camera_name]
 
+        if request.headers.get("remote-role") != "admin":
+            for patch in camera_dict.get("patches", []):
+                patch.pop("settings", None)
+
         # redact onvif credentials
         onvif_dict = camera_dict.get("onvif", {})
         if onvif_dict:

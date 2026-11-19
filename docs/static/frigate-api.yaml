@@ -863,6 +863,94 @@ paths:
       security:
         - frigateAdminAuth: []
       x-required-role: admin
+  /{camera_name}/patches:
+    get:
+      tags:
+        - Camera
+      summary: Patch Status
+      description: |-
+        **Access:** Authenticated user with access to the referenced camera.
+
+        Return the camera's configured controls and current device state.
+      operationId: patch_status__camera_name__patches_get
+      parameters:
+        - name: camera_name
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Camera Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CameraPatchesStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - frigateUserAuth: []
+      x-required-role: camera
+  /{camera_name}/patches/{patch_id}/{control_id}:
+    post:
+      tags:
+        - Camera
+      summary: Patch Command
+      description: |-
+        **Access:** Admin role required.
+
+        Send a validated command and return its acknowledgment.
+      operationId: set_camera_patch_control
+      parameters:
+        - name: camera_name
+          in: path
+          required: true
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Camera Name
+        - name: patch_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Patch Id
+        - name: control_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Control Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchCommand'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatchCommandResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - frigateAdminAuth: []
+      x-required-role: admin
   /chat/tools:
     get:
       tags:
@@ -7483,6 +7571,18 @@ components:
       required:
         - file
       title: Body_register_face_faces__name__register_post
+    CameraPatchesStatus:
+      properties:
+        patches:
+          items:
+            $ref: '#/components/schemas/PatchStatus'
+          type: array
+          title: Patches
+      type: object
+      required:
+        - patches
+      title: CameraPatchesStatus
+      description: Camera-scoped list of configured providers.
     CameraSetBody:
       properties:
         value:
@@ -8438,6 +8538,7 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    JsonValue: {}
     Last24HoursReview:
       properties:
         reviewed_alert:
@@ -8659,6 +8760,159 @@ components:
         - status
       title: MotionSearchStatusResponse
       description: Response containing job status and results.
+    PatchCommand:
+      properties:
+        value:
+          anyOf:
+            - type: boolean
+            - type: string
+            - type: 'null'
+          title: Value
+        duration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Duration
+      additionalProperties: false
+      type: object
+      required:
+        - value
+      title: PatchCommand
+      description: A value and optional duration for a control.
+    PatchCommandResult:
+      properties:
+        success:
+          type: boolean
+          const: true
+          title: Success
+          default: true
+      type: object
+      title: PatchCommandResult
+      description: Acknowledgment that the provider completed the command.
+    PatchControl:
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9_]*$
+          title: Id
+        label:
+          type: string
+          title: Label
+        kind:
+          type: string
+          enum:
+            - toggle
+            - select
+            - button
+          title: Kind
+        options:
+          items:
+            $ref: '#/components/schemas/PatchControlOption'
+          type: array
+          title: Options
+        duration:
+          anyOf:
+            - $ref: '#/components/schemas/PatchControlDuration'
+            - type: 'null'
+        duration_values:
+          items:
+            type: string
+          type: array
+          title: Duration Values
+        state_key:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: State Key
+        readback:
+          type: string
+          enum:
+            - device
+            - ack
+            - none
+          title: Readback
+          default: none
+        requires_admin:
+          type: boolean
+          const: true
+          title: Requires Admin
+          default: true
+      type: object
+      required:
+        - id
+        - label
+        - kind
+      title: PatchControl
+      description: A control available to users with camera access.
+    PatchControlDuration:
+      properties:
+        minimum:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Minimum
+        maximum:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Maximum
+        default:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Default
+      type: object
+      required:
+        - minimum
+        - maximum
+        - default
+      title: PatchControlDuration
+      description: Allowed duration in whole seconds.
+    PatchControlOption:
+      properties:
+        label:
+          type: string
+          title: Label
+        value:
+          type: string
+          title: Value
+      type: object
+      required:
+        - label
+        - value
+      title: PatchControlOption
+      description: A select control option.
+    PatchStatus:
+      properties:
+        id:
+          type: string
+          title: Id
+        controls:
+          items:
+            $ref: '#/components/schemas/PatchControl'
+          type: array
+          title: Controls
+        state:
+          additionalProperties:
+            $ref: '#/components/schemas/JsonValue'
+          type: object
+          title: State
+        available:
+          type: boolean
+          title: Available
+        error:
+          anyOf:
+            - type: string
+              enum:
+                - unavailable
+                - state_failed
+            - type: 'null'
+          title: Error
+      type: object
+      required:
+        - id
+        - controls
+        - state
+        - available
+      title: PatchStatus
+      description: Capabilities and device state for one configured provider.
     PlaybackSourceEnum:
       type: string
       enum:

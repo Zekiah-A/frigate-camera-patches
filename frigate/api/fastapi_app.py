@@ -16,6 +16,7 @@ from frigate.api import app as main_app
 from frigate.api import (
     auth,
     camera,
+    camera_patches,
     chat,
     classification,
     debug_replay,
@@ -29,6 +30,7 @@ from frigate.api import (
     review,
 )
 from frigate.api.auth import get_jwt_secret, limiter, require_admin_by_default
+from frigate.camera_patches.runtime import CameraPatchRuntime
 from frigate.comms.dispatcher import Dispatcher
 from frigate.comms.event_metadata_updater import (
     EventMetadataPublisher,
@@ -118,11 +120,16 @@ def create_fastapi_app(
     @app.on_event("startup")
     async def startup():
         logger.info("FastAPI started")
+        app.camera_patches.start()
         asyncio.create_task(
             debug_replay_auto_stop_watchdog(
                 replay_manager, frigate_config, config_publisher
             )
         )
+
+    @app.on_event("shutdown")
+    async def shutdown():
+        await app.camera_patches.close()
 
     # Rate limiter (used for login endpoint)
     if frigate_config.auth.failed_login_rate_limit is None:
@@ -138,6 +145,7 @@ def create_fastapi_app(
     # Order of include_router matters: https://fastapi.tiangolo.com/tutorial/path-params/#order-matters
     app.include_router(auth.router)
     app.include_router(camera.router)
+    app.include_router(camera_patches.router)
     app.include_router(chat.router)
     app.include_router(classification.router)
     app.include_router(review.router)
@@ -152,6 +160,7 @@ def create_fastapi_app(
     app.include_router(debug_replay.router)
     # App Properties
     app.frigate_config = frigate_config
+    app.camera_patches = CameraPatchRuntime(lambda: app.frigate_config)
     # snapshot the port nginx bound at startup, the live config can be swapped
     app.auth_internal_port = frigate_config.networking.listen.internal_port
     app.genai_manager = GenAIClientManager(frigate_config)

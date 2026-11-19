@@ -61,3 +61,6 @@ def swap_runtime_config(app: FastAPI, config: FrigateConfig) -> None:
         # workers still hold the live toggle values, so correct only the
         # config object here rather than re-broadcasting every override
         app.dispatcher.reapply_runtime_state_to_config()
+
+    if hasattr(app, "camera_patches"):
+        app.camera_patches.config_changed()

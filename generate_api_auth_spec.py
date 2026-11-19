@@ -51,6 +51,7 @@ from frigate.api import app as main_app
 from frigate.api import (
     auth,
     camera,
+    camera_patches,
     chat,
     classification,
     debug_replay,
@@ -145,6 +146,7 @@ def build_app() -> FastAPI:
     routers = [
         auth.router,
         camera.router,
+        camera_patches.router,
         chat.router,
         classification.router,
         review.router,

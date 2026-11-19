@@ -33,6 +33,7 @@ from .mqtt import CameraMqttConfig
 from .notification import NotificationConfig
 from .objects import ObjectConfig
 from .onvif import OnvifConfig
+from .patches import CameraPatchConfig
 from .profile import CameraProfileConfig
 from .record import RecordConfig
 from .review import ReviewConfig
@@ -169,6 +170,11 @@ class CameraConfig(FrigateBaseModel):
         title="ONVIF",
         description="ONVIF connection and PTZ autotracking settings for this camera.",
     )
+    patches: list[CameraPatchConfig] = Field(
+        default_factory=list,
+        title="Camera Patches",
+        description="Optional controls from bundled camera patch providers.",
+    )
     type: CameraTypeEnum = Field(
         default=CameraTypeEnum.generic,
         title="Camera type",
@@ -200,6 +206,13 @@ class CameraConfig(FrigateBaseModel):
         title="Original camera state",
         description="Keep track of original state of camera.",
     )
+
+    @model_validator(mode="after")
+    def validate_patches(self) -> "CameraConfig":
+        """Each provider can be configured once per camera."""
+        if len({patch.id for patch in self.patches}) != len(self.patches):
+            raise ValueError("Camera patch provider IDs must be unique per camera")
+        return self
 
     _ffmpeg_cmds: list[dict[str, list[str]]] = PrivateAttr()
 
