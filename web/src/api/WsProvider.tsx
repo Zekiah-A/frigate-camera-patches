@@ -16,10 +16,10 @@ export function WsProvider({ children }: { children: ReactNode }) {
   const unmounted = useRef(false);
   const pendingSends = useRef<Map<string, unknown>>(new Map());
 
-  const sendJsonMessage = useCallback((msg: unknown) => {
+  const sendJsonMessage = useCallback((msg: unknown, buffer: boolean) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(msg));
-    } else if (msg && typeof msg === "object" && "topic" in msg) {
+    } else if (buffer && msg && typeof msg === "object" && "topic" in msg) {
       // Sends issued before the socket reaches OPEN (or during a reconnect
       // window) are buffered here and flushed in onopen
       pendingSends.current.set(String((msg as { topic: unknown }).topic), msg);
@@ -87,12 +87,8 @@ export function WsProvider({ children }: { children: ReactNode }) {
   }, [wsUrl]);
 
   const send = useCallback(
-    (message: Update) => {
-      sendJsonMessage({
-        topic: message.topic,
-        payload: message.payload,
-        retain: message.retain,
-      });
+    (message: Update, buffer = true) => {
+      sendJsonMessage(message, buffer);
     },
     [sendJsonMessage],
   );

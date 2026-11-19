@@ -15,6 +15,10 @@
     "disable": "Disable Camera Audio"
   },
   "ptz": {
+    "joystick": {
+      "label": "Pan and tilt joystick",
+      "instructions": "Drag or hold arrow keys to move. Release to stop."
+    },
     "move": {
       "clickMove": {
         "label": "Click in the frame to center the camera",

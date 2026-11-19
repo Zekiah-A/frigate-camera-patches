@@ -6,6 +6,6 @@ export type Update = {
   retain: boolean;
 };
 
-export type WsSend = (update: Update) => void;
+export type WsSend = (update: Update, buffer?: boolean) => void;
 
 export const WsSendContext = createContext<WsSend | null>(null);

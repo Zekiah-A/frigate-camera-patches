@@ -220,6 +220,8 @@ If a camera connects but fails to authenticate, two optional fields can help:
 
 If your camera has multiple ONVIF profiles, you can specify which one to use for PTZ control with the `profile` option, matched by token or name. When not set, Frigate selects the first profile with a valid PTZ configuration. Check the Frigate debug logs (`frigate.ptz.onvif: debug`) to see available profile names and tokens for your camera.
 
+Enable **PTZ joystick** in the camera's ONVIF settings (or set `onvif.joystick: true`) to add analog pan and tilt to Live view. The joystick requires autotracking to be disabled and the camera to report signed continuous pan and tilt velocity. Enable it only on cameras that honor a one-second movement timeout. If the camera advertises a timeout range, that range must include one second. Drag the joystick or focus it and hold the arrow keys. Releasing the controls stops movement.
+
 An ONVIF-capable camera that supports relative movement within the field of view (FOV) can also be configured to automatically track moving objects and keep them in the center of the frame. For autotracking setup, see the [autotracking](autotracking.md) docs.
 
 ## ONVIF PTZ camera recommendations

@@ -72,7 +72,7 @@ _WS_VIEWER_TOPICS = frozenset(
 )
 
 # Camera-scoped command topics a camera-authorized (non-admin) user may send.
-_WS_CAMERA_COMMAND_TOPICS = frozenset({"ptz"})
+_WS_CAMERA_COMMAND_TOPICS = frozenset({"ptz", "ptz_joystick"})
 
 
 def _check_ws_authorization(
@@ -491,6 +491,8 @@ class WebSocketClient(Communicator):
                     return
 
                 topic = json_message["topic"]
+                if not isinstance(topic, str):
+                    return
 
                 # Authorization check (skip when environ is None — direct internal connection)
                 role_header = (
@@ -510,11 +512,18 @@ class WebSocketClient(Communicator):
                     )
                     return
 
+                if topic.endswith("/ptz_joystick"):
+                    self.receiver(topic, json_message["payload"], ws_owner=self)
+                    return
+
                 logger.debug(f"Publishing mqtt message from websockets at {topic}.")
                 self.receiver(
                     topic,
                     json_message["payload"],
                 )
+
+            def closed(self, code: int, reason: str | None = None) -> None:
+                self.receiver("ptz_joystick_disconnect", None, ws_owner=self)
 
         # start a websocket server on 5002
         WebSocketWSGIHandler.http_version = "1.1"

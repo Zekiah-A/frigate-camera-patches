@@ -16,6 +16,7 @@ const onvif: SectionConfigOverrides = {
       "profile",
       "tls_insecure",
       "ignore_time_mismatch",
+      "joystick",
       "autotracking",
     ],
     hiddenFields: [
