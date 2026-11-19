@@ -151,7 +151,14 @@ export default function LiveCameraView({
   const [{ width: windowWidth, height: windowHeight }] =
     useResizeObserver(window);
 
-  const [showPatchControls, setShowPatchControls] = useState(false);
+  const hasPatches = !!camera.patches?.length;
+  const hasPtz = !!camera.onvif.host;
+  const compactPatches =
+    hasPatches && (isMobile || (windowWidth || window.innerWidth) < 768);
+  const landscapeToolbar = isMobile && !compactPatches;
+  const [patchPanel, setPatchPanel] = useState<"controls" | "move" | null>(
+    null,
+  );
 
   // supported features
 
@@ -392,6 +399,26 @@ export default function LiveCameraView({
     return "mse";
   }, [lowBandwidth, mic, webRTC, isRestreamed]);
 
+  const showCompactPanels = compactPatches && !fullscreen && !debug;
+  const showDesktopPatches =
+    hasPatches && !compactPatches && !fullscreen && !debug;
+
+  const showClickOverlay =
+    clickOverlay && (!showCompactPanels || patchPanel === "move");
+  const selectPatchPanel = useCallback((panel: typeof patchPanel) => {
+    setPatchPanel(panel);
+    setClickOverlay(false);
+    setPtzRect(null);
+    setIsPtzDrawing(false);
+    ptzOriginRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!showCompactPanels && patchPanel !== null) {
+      selectPatchPanel(null);
+    }
+  }, [showCompactPanels, patchPanel, selectPatchPanel]);
+
   useKeyboardListener(["m", "Escape"], (key, modifiers) => {
     if (!modifiers.down) {
       return true;
@@ -411,6 +438,10 @@ export default function LiveCameraView({
         }
         break;
       case "Escape":
+        if (showCompactPanels && patchPanel !== null) {
+          selectPatchPanel(null);
+          return true;
+        }
         if (!fullscreen) {
           navigate(-1);
           return true;
@@ -517,12 +548,28 @@ export default function LiveCameraView({
     [config, webRTC],
   );
 
+  const ptzPanel = hasPtz && (
+    <PtzControlPanel
+      className={
+        showCompactPanels
+          ? "static mx-auto max-h-[32dvh] max-w-full overflow-y-auto md:translate-x-0 md:flex-wrap landscape:!ml-0"
+          : debug && isMobile
+            ? "bottom-auto top-[25%]"
+            : ""
+      }
+      camera={camera.name}
+      enabled={cameraEnabled}
+      clickOverlay={showClickOverlay}
+      setClickOverlay={setClickOverlay}
+    />
+  );
+
   return (
     <TransformWrapper
       minScale={1.0}
       wheel={{ smoothStep: 0.005 }}
-      disabled={debug || clickOverlay}
-      panning={{ disabled: clickOverlay }}
+      disabled={debug || showClickOverlay}
+      panning={{ disabled: showClickOverlay }}
     >
       <Toaster position="top-center" closeButton={true} />
       <div
@@ -530,19 +577,19 @@ export default function LiveCameraView({
         className={
           fullscreen
             ? `fixed inset-0 z-30 bg-black`
-            : `flex size-full flex-col p-2 ${isMobile ? "landscape:flex-row landscape:gap-1" : ""}`
+            : `flex size-full flex-col p-2 ${landscapeToolbar ? "landscape:flex-row landscape:gap-1" : ""}`
         }
       >
         <div
           className={
             fullscreen
               ? `absolute right-32 top-1 z-40 ${isMobile ? "landscape:bottom-1 landscape:left-2 landscape:right-auto landscape:top-auto" : ""}`
-              : `flex h-12 w-full flex-row items-center justify-between ${isMobile ? "landscape:h-full landscape:w-12 landscape:flex-col" : ""}`
+              : `flex h-12 w-full flex-row items-center justify-between ${landscapeToolbar ? "landscape:h-full landscape:w-12 landscape:flex-col" : ""}`
           }
         >
           {!fullscreen ? (
             <div
-              className={`flex items-center gap-2 ${isMobile ? "landscape:flex-col" : ""}`}
+              className={`flex items-center gap-2 ${landscapeToolbar ? "landscape:flex-col" : ""}`}
             >
               <Button
                 className={`flex items-center gap-2.5 rounded-lg`}
@@ -586,7 +633,7 @@ export default function LiveCameraView({
             <div />
           )}
           <div
-            className={`flex flex-row items-center gap-2 *:rounded-lg ${isMobile ? "landscape:flex-col" : ""}`}
+            className={`flex flex-row items-center gap-2 *:rounded-lg ${(fullscreen ? isMobile : landscapeToolbar) ? "landscape:flex-col" : ""}`}
           >
             {fullscreen && (
               <Button
@@ -702,7 +749,15 @@ export default function LiveCameraView({
           </div>
         </div>
         {!debug ? (
-          <div id="player-container" className="size-full" ref={containerRef}>
+          <div
+            id="player-container"
+            className={cn(
+              "size-full",
+              (showCompactPanels || showDesktopPatches) &&
+                "relative min-h-0 flex-1",
+            )}
+            ref={containerRef}
+          >
             <TransformComponent
               wrapperStyle={{
                 width: "100%",
@@ -725,7 +780,7 @@ export default function LiveCameraView({
                   aspectRatio: constrainedAspectRatio,
                 }}
               >
-                {clickOverlay && overlaySize.width > 0 && (
+                {showClickOverlay && overlaySize.width > 0 && (
                   <div
                     className="absolute z-40 cursor-crosshair"
                     style={{
@@ -782,6 +837,7 @@ export default function LiveCameraView({
                 />
               </div>
             </TransformComponent>
+            {showDesktopPatches && ptzPanel}
             {camera?.audio?.enabled_in_config &&
               audioTranscriptionState == "ON" &&
               transcription != null && (
@@ -808,30 +864,57 @@ export default function LiveCameraView({
             <ObjectSettingsView selectedCamera={camera.name} />
           </TransformComponent>
         )}
-        {!!camera.patches?.length && !fullscreen && (
+        {showDesktopPatches && (
           <div className="shrink-0">
-            <Button
-              size="sm"
-              aria-expanded={showPatchControls}
-              onClick={() => setShowPatchControls(!showPatchControls)}
-            >
-              {t("patches.controls")}
-            </Button>
-            {showPatchControls && (
-              <CameraPatchControls key={camera.name} camera={camera.name} />
+            <CameraPatchControls camera={camera.name} />
+          </div>
+        )}
+        {showCompactPanels && (
+          <div className="shrink-0 space-y-2">
+            <div className="flex gap-2">
+              <Button
+                aria-expanded={patchPanel === "controls"}
+                aria-controls="camera-patch-controls"
+                onClick={() =>
+                  selectPatchPanel(
+                    patchPanel === "controls" ? null : "controls",
+                  )
+                }
+              >
+                {t("patches.controlsButton")}
+              </Button>
+              {hasPtz && (
+                <Button
+                  aria-expanded={patchPanel === "move"}
+                  aria-controls="camera-patch-move"
+                  onClick={() =>
+                    selectPatchPanel(patchPanel === "move" ? null : "move")
+                  }
+                >
+                  {t("patches.move")}
+                </Button>
+              )}
+            </div>
+            <div id="camera-patch-controls" hidden={patchPanel !== "controls"}>
+              {patchPanel === "controls" && (
+                <CameraPatchControls camera={camera.name} />
+              )}
+            </div>
+            {hasPtz && (
+              <section
+                id="camera-patch-move"
+                aria-label={t("patches.move")}
+                hidden={patchPanel !== "move"}
+              >
+                {patchPanel === "move" && ptzPanel}
+              </section>
             )}
           </div>
         )}
       </div>
-      {camera.onvif.host != "" && (
+      {hasPtz && !showCompactPanels && !showDesktopPatches && (
         <div className="flex flex-col items-center justify-center">
-          <PtzControlPanel
-            className={debug && isMobile ? "bottom-auto top-[25%]" : ""}
-            camera={camera.name}
-            enabled={cameraEnabled}
-            clickOverlay={clickOverlay}
-            setClickOverlay={setClickOverlay}
-          />
+          {ptzPanel}
         </div>
       )}
     </TransformWrapper>

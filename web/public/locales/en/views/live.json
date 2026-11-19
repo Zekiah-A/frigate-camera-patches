@@ -199,6 +199,7 @@
   },
   "patches": {
     "controls": "Camera controls",
+    "controlsButton": "Controls",
     "move": "Move",
     "on": "On",
     "off": "Off",
