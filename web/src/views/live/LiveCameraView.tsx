@@ -1,3 +1,4 @@
+import CameraPatchControls from "@/components/overlay/CameraPatchControls";
 import {
   useAudioLiveTranscription,
   useAudioState,
@@ -149,6 +150,8 @@ export default function LiveCameraView({
   const containerRef = useRef<HTMLDivElement>(null);
   const [{ width: windowWidth, height: windowHeight }] =
     useResizeObserver(window);
+
+  const [showPatchControls, setShowPatchControls] = useState(false);
 
   // supported features
 
@@ -804,6 +807,20 @@ export default function LiveCameraView({
           >
             <ObjectSettingsView selectedCamera={camera.name} />
           </TransformComponent>
+        )}
+        {!!camera.patches?.length && !fullscreen && (
+          <div className="shrink-0">
+            <Button
+              size="sm"
+              aria-expanded={showPatchControls}
+              onClick={() => setShowPatchControls(!showPatchControls)}
+            >
+              {t("patches.controls")}
+            </Button>
+            {showPatchControls && (
+              <CameraPatchControls key={camera.name} camera={camera.name} />
+            )}
+          </div>
         )}
       </div>
       {camera.onvif.host != "" && (

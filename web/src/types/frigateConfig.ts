@@ -31,6 +31,7 @@ export type SearchModel = "jinav1" | "jinav2";
 export type SearchModelSize = "small" | "large";
 
 export interface CameraConfig {
+  patches?: { id: string }[];
   friendly_name: string;
   audio: {
     enabled: boolean;

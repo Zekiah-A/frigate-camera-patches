@@ -196,5 +196,19 @@
       "description": "This camera group has no assigned or enabled cameras.",
       "buttonText": "Manage Groups"
     }
+  },
+  "patches": {
+    "controls": "Camera controls",
+    "move": "Move",
+    "on": "On",
+    "off": "Off",
+    "turnOn": "Turn on",
+    "turnOff": "Turn off",
+    "seconds": "Seconds",
+    "unknown": "Unknown",
+    "acknowledged": "{{control}} command accepted",
+    "failed": "{{control}} command failed",
+    "unavailable": "Camera state unavailable",
+    "loading": "Reading camera state…"
   }
 }
