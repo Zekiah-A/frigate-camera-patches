@@ -1562,6 +1562,10 @@
       "label": "ONVIF profile",
       "description": "Specific ONVIF media profile to use for PTZ control, matched by token or name. If not set, the first profile with valid PTZ configuration is selected automatically."
     },
+    "joystick": {
+      "label": "PTZ joystick",
+      "description": "Enable analog pan and tilt in Live view on cameras that support bounded continuous movement. Requires autotracking to be off."
+    },
     "autotracking": {
       "label": "Autotracking",
       "description": "Automatically track moving objects and keep them centered in the frame using PTZ camera movements.",

@@ -187,6 +187,24 @@ class TestCheckWsAuthorization(unittest.TestCase):
 
     # --- Camera-scoped PTZ access (non-admin with camera access) ---
 
+    def test_joystick_uses_camera_authorization(self):
+        for topic, authorized in (
+            ("front_door/ptz_joystick", True),
+            ("garage/ptz_joystick", False),
+            ("ptz_joystick_disconnect", False),
+        ):
+            with self.subTest(topic=topic):
+                self.assertEqual(
+                    _check_ws_authorization(
+                        topic,
+                        "yard",
+                        self.DEFAULT_SEPARATOR,
+                        self.ROLES_CONFIG,
+                        self.CAMERA_NAMES,
+                    ),
+                    authorized,
+                )
+
     def test_viewer_can_ptz_camera_with_access(self):
         # viewer maps to all cameras, so PTZ is allowed
         self.assertTrue(

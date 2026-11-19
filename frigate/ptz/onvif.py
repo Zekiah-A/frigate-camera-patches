@@ -19,6 +19,14 @@ from frigate.config.camera.updater import (
     CameraConfigUpdateEnum,
     CameraConfigUpdateSubscriber,
 )
+from frigate.ptz.joystick import (
+    CAMERA_TIMEOUT,
+    LEASE_SECONDS,
+    VELOCITY_SPACE,
+    JoystickLease,
+    parse_joystick,
+    supports_joystick,
+)
 from frigate.util.builtin import find_by_key
 
 logger = logging.getLogger(__name__)
@@ -55,6 +63,9 @@ class OnvifController:
         self.ptz_metrics = ptz_metrics
 
         self.status_locks: dict[str, asyncio.Lock] = {}
+        self._joysticks: dict[str, tuple[JoystickLease, asyncio.Task[None]]] = {}
+        self._legacy_commands: dict[str, int] = {}
+        self._joystick_closing = False
 
         # Create a dedicated event loop and run it in a separate thread
         self.loop = asyncio.new_event_loop()
@@ -117,7 +128,14 @@ class OnvifController:
         """Re-initialize a camera after config change."""
         logger.info(f"Re-initializing ONVIF for {cam_name} due to config change")
 
-        # close existing session before re-init
+        # Stop the joystick before replacing the service or profile.
+        cam_state = self.cams.get(cam_name)
+        if cam_state and "joystick" in cam_state["features"]:
+            cam_state["features"].remove("joystick")
+        joystick = self._joysticks.get(cam_name)
+        if joystick:
+            joystick[0].release()
+            await joystick[1]
         await self._close_camera(cam_name)
 
         cam = self.config.cameras.get(cam_name)
@@ -466,6 +484,8 @@ class OnvifController:
 
         if configs.DefaultContinuousPanTiltVelocitySpace:
             supported_features.append("pt")
+            if self._joystick_configured(camera_name) and supports_joystick(ptz_config):
+                supported_features.append("joystick")
 
         if configs.DefaultContinuousZoomVelocitySpace:
             supported_features.append("zoom")
@@ -806,6 +826,101 @@ class OnvifController:
             logger.warning(f"Onvif sending focus request to {camera_name} failed: {e}")
             self.cams[camera_name]["active"] = False
 
+    def _joystick_configured(self, camera_name: str) -> bool:
+        camera = self.config.cameras.get(camera_name)
+        if not camera or not camera.enabled or not camera.onvif.joystick:
+            return False
+        tracking = camera.onvif.autotracking
+        return not (
+            tracking.enabled
+            or tracking.enabled_in_config
+            or tracking.calibrate_on_startup
+        )
+
+    def joystick_command(
+        self, camera_name: str, owner: object, payload: object
+    ) -> None:
+        """Schedule a validated joystick sample without blocking the WebSocket."""
+        command = parse_joystick(payload)
+        if command and not self._joystick_closing:
+            self.loop.call_soon_threadsafe(
+                self._receive_joystick,
+                camera_name,
+                owner,
+                command,
+                self.loop.time() + LEASE_SECONDS,
+            )
+
+    def _receive_joystick(
+        self,
+        camera_name: str,
+        owner: object,
+        command: tuple[str, int, float, float],
+        deadline: float,
+    ) -> None:
+        phase, gesture, x, y = command
+        current = self._joysticks.get(camera_name)
+        if current:
+            lease, _ = current
+            if lease.owner is not owner or lease.gesture != gesture:
+                return
+            if phase == "stop" or not self._joystick_configured(camera_name):
+                lease.release()
+            elif phase == "move" and deadline > self.loop.time():
+                lease.update(x, y, deadline)
+            return
+
+        camera = self.cams.get(camera_name)
+        if (
+            phase != "start"
+            or self._joystick_closing
+            or deadline <= self.loop.time()
+            or not camera
+            or not camera["init"]
+            or "joystick" not in camera["features"]
+            or not self._joystick_configured(camera_name)
+            or camera["active"]
+            or self._legacy_commands.get(camera_name)
+        ):
+            return
+
+        ptz = camera["ptz"]
+        profile = camera["move_request"].ProfileToken
+
+        async def move(x: float, y: float) -> None:
+            await ptz.ContinuousMove(
+                {
+                    "ProfileToken": profile,
+                    "Velocity": {"PanTilt": {"x": x, "y": y, "space": VELOCITY_SPACE}},
+                    "Timeout": CAMERA_TIMEOUT,
+                }
+            )
+
+        async def stop() -> None:
+            await ptz.Stop({"ProfileToken": profile, "PanTilt": True, "Zoom": False})
+
+        lease = JoystickLease(owner, gesture, move, stop)
+        lease.update(x, y, deadline)
+
+        async def run() -> None:
+            try:
+                await lease.run()
+            finally:
+                self._joysticks.pop(camera_name, None)
+
+        self._joysticks[camera_name] = (lease, asyncio.create_task(run()))
+
+    def release_joysticks(self, owner: object) -> None:
+        """Release any movement leases owned by a disconnected WebSocket."""
+
+        def release() -> None:
+            for lease, _ in self._joysticks.values():
+                if lease.owner is owner:
+                    lease.release()
+
+        if not self._joystick_closing:
+            self.loop.call_soon_threadsafe(release)
+
     async def handle_command_async(
         self, camera_name: str, command: OnvifCommandEnum, param: str = ""
     ) -> None:
@@ -814,11 +929,20 @@ class OnvifController:
             logger.error(f"ONVIF is not configured for {camera_name}")
             return
 
-        if not self.cams[camera_name]["init"]:
-            if not await self._init_onvif(camera_name):
-                return
+        joystick = self._joysticks.get(camera_name)
+        if joystick:
+            if command == OnvifCommandEnum.stop:
+                joystick[0].release()
+            return
 
+        self._legacy_commands[camera_name] = (
+            self._legacy_commands.get(camera_name, 0) + 1
+        )
         try:
+            if not self.cams[camera_name]["init"]:
+                if not await self._init_onvif(camera_name):
+                    return
+
             if command == OnvifCommandEnum.init:
                 # already init
                 return
@@ -847,6 +971,11 @@ class OnvifController:
                 await self._move(camera_name, command)
         except (Fault, ONVIFError, TransportError, Exception) as e:
             logger.error(f"Unable to handle onvif command: {e}")
+        finally:
+            if self._legacy_commands[camera_name] == 1:
+                self._legacy_commands.pop(camera_name)
+            else:
+                self._legacy_commands[camera_name] -= 1
 
     def handle_command(
         self, camera_name: str, command: OnvifCommandEnum, param: str = ""
@@ -1086,20 +1215,27 @@ class OnvifController:
 
     def close(self) -> None:
         """Gracefully shut down the ONVIF controller."""
-        if not hasattr(self, "loop") or self.loop.is_closed():
+        if not hasattr(self, "loop") or self.loop.is_closed() or self._joystick_closing:
             logger.debug("ONVIF controller already closed")
             return
 
         logger.info("Exiting ONVIF controller...")
         self.config_subscriber.stop()
 
-        def stop_and_cleanup():
-            try:
-                self.loop.stop()
-            except Exception as e:
-                logger.error(f"Error during loop cleanup: {e}")
+        self._joystick_closing = True
 
-        # Schedule stop and cleanup in the loop thread
-        self.loop.call_soon_threadsafe(stop_and_cleanup)
+        async def stop_joysticks() -> None:
+            leases = list(self._joysticks.values())
+            for lease, _ in leases:
+                lease.release()
+            await asyncio.gather(*(task for _, task in leases))
+
+        future = asyncio.run_coroutine_threadsafe(stop_joysticks(), self.loop)
+        try:
+            future.result(timeout=3)
+        except TimeoutError:
+            logger.warning("Timed out stopping ONVIF joysticks")
+        finally:
+            self.loop.call_soon_threadsafe(self.loop.stop)
 
         self.loop_thread.join()

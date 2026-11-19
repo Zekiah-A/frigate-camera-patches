@@ -121,6 +121,11 @@ class OnvifConfig(FrigateBaseModel):
         title="ONVIF profile",
         description="Specific ONVIF media profile to use for PTZ control, matched by token or name. If not set, the first profile with valid PTZ configuration is selected automatically.",
     )
+    joystick: bool = Field(
+        default=False,
+        title="PTZ joystick",
+        description="Enable analog pan and tilt in Live view on cameras that support bounded continuous movement. Requires autotracking to be off.",
+    )
     autotracking: PtzAutotrackConfig = Field(
         default_factory=PtzAutotrackConfig,
         title="Autotracking",

@@ -1,5 +1,6 @@
 type PtzFeature =
   | "pt"
+  | "joystick"
   | "zoom"
   | "pt-r"
   | "zoom-r"

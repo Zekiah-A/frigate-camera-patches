@@ -1,4 +1,5 @@
 import { usePtzCommand } from "@/api/ws";
+import PtzJoystick from "@/components/overlay/PtzJoystick";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -136,6 +137,10 @@ export default function PtzControlPanel({
         isMobile && "landscape:ml-12",
       )}
     >
+      {enabled && ptz?.features?.includes("joystick") && (
+        <PtzJoystick key={camera} camera={camera} />
+      )}
+
       {ptz?.features?.includes("pt") && (
         <>
           <TooltipButton

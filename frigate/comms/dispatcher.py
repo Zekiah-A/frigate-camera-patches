@@ -108,8 +108,18 @@ class Dispatcher:
         if self.web_push_client is not None:
             self.web_push_client.set_suspension_broadcaster(self.publish)
 
-    def _receive(self, topic: str, payload: Any) -> Any | None:
+    def _receive(
+        self, topic: str, payload: Any, *, ws_owner: object | None = None
+    ) -> Any | None:
         """Handle receiving of payload from communicators."""
+        if ws_owner is not None:
+            if topic == "ptz_joystick_disconnect":
+                self.onvif.release_joysticks(ws_owner)
+            else:
+                camera, _, command = topic.partition("/")
+                if command == "ptz_joystick" and camera in self.config.cameras:
+                    self.onvif.joystick_command(camera, ws_owner, payload)
+            return None
 
         def handle_camera_command(
             command_type: str,
