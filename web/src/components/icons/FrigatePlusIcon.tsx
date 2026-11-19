@@ -1,6 +1,5 @@
 import { forwardRef } from "react";
-import { LuPlus } from "react-icons/lu";
-import Logo from "../Logo";
+import { LuCirclePlus } from "react-icons/lu";
 import { cn } from "@/lib/utils";
 
 type FrigatePlusIconProps = {
@@ -16,8 +15,7 @@ const FrigatePlusIcon = forwardRef<HTMLDivElement, FrigatePlusIconProps>(
         className={cn("relative flex items-center", className)}
         onClick={onClick}
       >
-        <Logo className="size-full" />
-        <LuPlus className="absolute size-2 translate-x-3 translate-y-3/4" />
+        <LuCirclePlus className="size-full" aria-hidden />
       </div>
     );
   },

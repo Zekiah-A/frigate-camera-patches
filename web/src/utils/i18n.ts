@@ -29,7 +29,27 @@ export const getTranslatedLabel = (
 i18n
   .use(initReactI18next)
   .use(HttpBackend)
+  .use({
+    type: "postProcessor",
+    name: "cameraPatchesTitle",
+    process(value: string, keys: string | string[]) {
+      if (
+        ![keys]
+          .flat()
+          .some((key) => key.split(/[.:]/).includes("documentTitle"))
+      ) {
+        return value;
+      }
+
+      // Locales translate the old app name in otherwise reusable page titles.
+      const oldBrand =
+        /(?:^|\s+[-–—|]\s*)(?:Frigate(?: NVR)?|Frigata|Fgirage|Frikgate|Фригейт|Фругейт|Фригејт|Фрегат|فرايجيت|فریگیت|فریگیٹ|פריגטה|फ्रिगेट|ಫ್ರಿಗೇಟ್|போர்க்கப்பல்|ஃப்ரிகேட்)\s*$/iu;
+      const pageTitle = value.replace(oldBrand, "").trim();
+      return pageTitle ? `${pageTitle} - Camera Patches` : "Camera Patches";
+    },
+  })
   .init({
+    postProcess: ["cameraPatchesTitle"],
     fallbackLng: "en", // use en if detected lng is not available
 
     backend: {
