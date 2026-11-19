@@ -733,6 +733,10 @@
   "live": {
     "label": "Live playback",
     "description": "Settings to control the jsmpeg live stream resolution and quality. This does not affect restreamed cameras that use go2rtc for live view.",
+    "push_to_talk": {
+      "label": "Hold to talk",
+      "description": "Transmit microphone audio only while the live talk button is held."
+    },
     "streams": {
       "label": "Live stream names",
       "description": "Mapping of configured stream names to restream/go2rtc names used for live playback."
