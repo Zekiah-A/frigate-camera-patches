@@ -7,8 +7,8 @@ import type * as OpenApiPlugin from "docusaurus-plugin-openapi-docs";
 const STABLE_VERSION = "0.18";
 
 const config: Config = {
-  title: "Frigate",
-  tagline: "NVR With Realtime Object Detection for IP Cameras",
+  title: "Camera Patches",
+  tagline: "An unofficial fork of Frigate NVR for local camera controls",
   url: "https://docs.frigate.video",
   baseUrl: "/",
   onBrokenLinks: "throw",
@@ -66,7 +66,6 @@ const config: Config = {
       },
       aiChatSettings: {
         chatSubjectName: "Frigate",
-        botAvatarSrcUrl: "https://frigate.video/images/favicon.png",
         getHelpCallToActions: [
           {
             name: "GitHub",
@@ -127,9 +126,9 @@ const config: Config = {
       },
     ],
     navbar: {
-      title: "Frigate",
+      title: "Camera Patches",
       logo: {
-        alt: "Frigate",
+        alt: "Camera Patches",
         src: "img/branding/logo.svg",
         srcDark: "img/branding/logo-dark.svg",
       },

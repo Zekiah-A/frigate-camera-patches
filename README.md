@@ -1,8 +1,10 @@
 <p align="center">
-  <img align="center" alt="logo" src="docs/static/img/branding/frigate.png">
+  <img align="center" alt="Camera Patches" width="64" src="web/images/branding/favicon.svg">
 </p>
 
-# Frigate NVR™ - Realtime Object Detection for IP Cameras
+# Camera Patches
+
+Camera Patches is an unofficial fork of [Frigate NVR](https://github.com/blakeblackshear/frigate) for local camera controls. This repository is named `frigate-camera-patches` and is independent of Frigate, Inc.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 

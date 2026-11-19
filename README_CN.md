@@ -1,8 +1,10 @@
 <p align="center">
-  <img align="center" alt="logo" src="docs/static/img/branding/frigate.png">
+  <img align="center" alt="Camera Patches" width="64" src="web/images/branding/favicon.svg">
 </p>
 
-# Frigate NVR™ - 一个具有实时目标检测的本地 NVR
+# Camera Patches
+
+Camera Patches 是 [Frigate NVR](https://github.com/blakeblackshear/frigate) 的非官方分支，用于本地摄像头控制。仓库名为 `frigate-camera-patches`，与 Frigate, Inc. 无隶属关系。
 
 <a href="https://hosted.weblate.org/engage/frigate-nvr/-/zh_Hans/">
 <img src="https://hosted.weblate.org/widget/frigate-nvr/-/zh_Hans/svg-badge.svg" alt="翻译状态" />
