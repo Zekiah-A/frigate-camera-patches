@@ -45,3 +45,35 @@ to users with camera access. Commands require the admin role and accept an
 explicit value and optional duration. Configuration and command state are
 separate. Command handling does not persist anything to Frigate's YAML or
 runtime override store.
+
+## ANNKE I51CP NetSDK
+
+Enable `netsdk` on an I51CP camera to expose manual and smart lighting, the
+camera microphone, image orientation, and siren controls.
+
+```yaml
+cameras:
+  front_door:
+    # Keep the camera's existing FFmpeg and ONVIF configuration.
+    patches:
+      - id: netsdk
+        settings:
+          model: annke_i51cp
+          host: camera.example
+          port: 80
+          username: camera-user
+          password_env: FRIGATE_NETSDK_FRONT_DOOR_PASSWORD
+```
+
+Set the named credential in the container environment or as a Frigate secret.
+The variable must begin with `FRIGATE_NETSDK_`. Set it explicitly to an empty
+value if the camera account has no password. The provider speaks the device's
+local HTTP NetSDK protocol. Limit access to the camera to trusted networks.
+
+Light On and Off confirm the camera's reported lamp state. Smart light
+returns control to the camera, whose lamp behavior depends on the scene.
+Starting and stopping the siren wait for the camera to accept the command.
+The separate sound status can update later. Microphone controls affect the
+camera's outgoing audio stream. Use Frigate's player volume to control local
+playback. A live stream started while the camera microphone was disabled may
+need to reconnect to pick up the audio track.
