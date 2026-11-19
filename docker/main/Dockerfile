@@ -60,10 +60,18 @@ ARG DEBIAN_FRONTEND
 RUN --mount=type=bind,source=docker/main/build_intel_media_driver.sh,target=/deps/build_intel_media_driver.sh \
     /deps/build_intel_media_driver.sh
 
-FROM scratch AS go2rtc
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS go2rtc
 ARG TARGETARCH
-WORKDIR /rootfs/usr/local/go2rtc/bin
-ADD --link --chmod=755 "https://github.com/AlexxIT/go2rtc/releases/download/v1.9.14/go2rtc_linux_${TARGETARCH}" go2rtc
+WORKDIR /src
+# The Frigate 0.18.3 release uses go2rtc v1.9.14.
+RUN git init && git fetch --depth=1 https://github.com/AlexxIT/go2rtc.git b5948cfb25404cc5cb37b166ecaa2dca20b11d4b && git checkout --detach FETCH_HEAD
+COPY docker/go2rtc/register-kp2p.patch /tmp/register-kp2p.patch
+RUN git apply --unidiff-zero /tmp/register-kp2p.patch
+COPY docker/go2rtc/kp2p internal/kp2p
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go test ./internal/kp2p && CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH \
+    go build -trimpath -o /rootfs/usr/local/go2rtc/bin/go2rtc .
 
 FROM wget AS tempio
 ARG TARGETARCH

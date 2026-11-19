@@ -99,6 +99,7 @@ export interface CameraConfig {
     roles: string[];
   }[];
   live: {
+    push_to_talk?: boolean;
     height: number;
     quality: number;
     streams: { [key: string]: string };
@@ -497,6 +498,7 @@ export interface FrigateConfig {
     streams: Record<string, string | string[]>;
     webrtc: {
       candidates: string[];
+      ice_servers?: RTCIceServer[];
     };
   };
 
