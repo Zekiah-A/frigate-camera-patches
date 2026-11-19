@@ -53,7 +53,7 @@ test.beforeEach(async ({ frigateApp }) => {
   await frigateApp.goto(`/#${CAMERA}`);
 });
 
-test("mobile patch panels start closed and open one at a time below the player", async ({
+test("mobile patch panels start closed and open one at a time below the player @mobile", async ({
   frigateApp,
 }) => {
   test.skip(!frigateApp.isMobile, "Mobile view");
